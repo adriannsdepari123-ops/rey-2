@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adrian - Next-Gen 3D Interactive Portfolio</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js untuk Radar Skill -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js untuk Efek Latar Belakang 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styling scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e1b4b;
+            border-radius: 9999px;
+            border: 2px solid #020617;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #312e81;
+        }
+
+        /* Glassmorphism custom classes */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel-hover:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.15);
+        }
+        
+        /* Glow animation */
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.05); }
+        }
+        .ambient-glow {
+            animation: pulse-glow 8s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans overflow-x-hidden relative selection:bg-indigo-500/30 selection:text-indigo-200">
+
+    <!-- 3D THREE.JS CONTAINER BACKGROUND -->
+    <div id="canvas-container" class="fixed inset-0 -z-20 w-full h-full pointer-events-none"></div>
+
+    <!-- AMBIENT NEON GLOW DECORATIONS -->
+    <div class="fixed top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-500/10 blur-[120px] pointer-events-none ambient-glow -z-10"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none ambient-glow -z-10"></div>
+
+    <!-- TOAST SYSTEM (Pengganti alert) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-3 pointer-events-none max-w-sm"></div>
+
+    <!-- HEADER BAR WITH EXPERIENCE / GAMIFICATION -->
+    <header class="sticky top-0 w-full z-40 border-b border-slate-800/60 bg-slate-950/70 backdrop-blur-md px-4 md:px-8 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Brand & Dev Level Status -->
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-xl shadow-lg shadow-indigo-500/20">
+                        <i data-lucide="terminal" class="w-5 h-5 text-white animate-pulse"></i>
+                    </div>
+                    <div>
+                        <span class="font-extrabold text-sm tracking-tight text-white">PORTFOLIO.DEV</span>
+                        <p class="text-[10px] text-indigo-400 font-semibold tracking-widest uppercase">Creative Student</p>
+                    </div>
+                </div>
+                <!-- XP System / Gamifikasi -->
+                <div class="flex items-center gap-3 bg-slate-900/60 border border-slate-800/80 rounded-full px-4 py-1.5 shadow-inner">
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs font-extrabold text-indigo-400">LV.</span>
+                        <span id="dev-level" class="text-sm font-black text-white">1</span>
+                    </div>
+                    <div class="w-24 md:w-32 bg-slate-950 h-2 rounded-full overflow-hidden border border-slate-800/50">
+                        <div id="xp-bar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <span id="xp-text" class="text-[10px] text-slate-400 font-mono">0/100 XP</span>
+                </div>
+            </div>
+
+            <!-- Nav Tabs -->
+            <nav class="flex items-center gap-1 md:gap-2">
+                <button onclick="switchTab('home')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30" data-tab="home">Home</button>
+                <button onclick="switchTab('skills')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="skills">Skill</button>
+                <button onclick="switchTab('projects')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="projects">Proyek</button>
+                <button onclick="switchTab('game')" class="nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white" data-tab="game">Mini Game</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 relative z-10 min-h-[calc(100vh-140px)]">
+
+        <!-- ================= TAB 1: HERO & HOME DASHBOARD ================= -->
+        <section id="tab-home" class="tab-content grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            
+            <!-- Profil Singkat Card (Left) -->
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="glass-panel rounded-3xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden group">
+                    <div class="absolute top-4 right-4 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span class="text-[9px] text-emerald-400 font-bold tracking-wider uppercase">Open To Project</span>
+                    </div>
+
+                    <!-- Avatar/Foto Profil Robot AI Permanen (Identitas Adrian) -->
+                    <div class="w-28 h-28 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-indigo-500 via-pink-500 to-violet-600 p-1 shadow-2xl relative mb-6 group">
+                        <div class="w-full h-full bg-slate-950 rounded-full overflow-hidden flex items-center justify-center border-4 border-slate-950">
+                            <!-- SVG Robot AI Premium Detail -->
+                            <svg class="w-full h-full text-indigo-400 group-hover:scale-105 transition duration-500 ease-out" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="armorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#312e81" />
+                                        <stop offset="50%" stop-color="#1e1b4b" />
+                                        <stop offset="100%" stop-color="#020617" />
+                                    </linearGradient>
+                                    <linearGradient id="neonGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#ec4899" />
+                                        <stop offset="100%" stop-color="#8b5cf6" />
+                                    </linearGradient>
+                                    <linearGradient id="cyanGlow" x1="0%" y1="100%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#06b6d4" />
+                                        <stop offset="100%" stop-color="#3b82f6" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- Background Tech Rings -->
+                                <circle cx="60" cy="60" r="54" stroke="url(#cyanGlow)" stroke-width="1.5" stroke-dasharray="4 6" class="animate-spin" style="animation-duration: 20s;" />
+                                <circle cx="60" cy="60" r="48" stroke="#312e81" stroke-width="1" opacity="0.5" />
+                                
+                                <!-- Robot Neck/Base -->
+                                <path d="M48,85 L72,85 L68,100 L52,100 Z" fill="url(#armorGrad)" stroke="#4f46e5" stroke-width="1.5" />
+                                <path d="M56,88 L64,88 L62,96 L58,96 Z" fill="#ec4899" opacity="0.8" />
+                                
+                                <!-- Shoulders/Collar -->
+                                <path d="M30,105 L90,105 L82,115 L38,115 Z" fill="#1e1b4b" stroke="#312e81" stroke-width="1.5" />
+                                <line x1="45" y1="105" x2="35" y2="115" stroke="#06b6d4" stroke-width="1.5" />
+                                <line x1="75" y1="105" x2="85" y2="115" stroke="#06b6d4" stroke-width="1.5" />
+                                
+                                <!-- Head / Helmet Plate -->
+                                <!-- Back Ears/Fin -->
+                                <path d="M32,55 L22,45 L26,65 Z" fill="#312e81" stroke="#4f46e5" stroke-width="1.5" />
+                                <path d="M88,55 L98,45 L94,65 Z" fill="#312e81" stroke="#4f46e5" stroke-width="1.5" />
+                                
+                                <!-- Main Face Shield -->
+                                <path d="M36,40 C36,25 46,18 60,18 C74,18 84,25 84,40 C84,65 76,82 60,82 C44,82 36,65 36,40 Z" fill="url(#armorGrad)" stroke="#4f46e5" stroke-width="2" />
+                                
+                                <!-- Side Armor Plates -->
+                                <path d="M34,48 L42,50 L40,68 L32,62 Z" fill="#1e1b4b" stroke="#312e81" stroke-width="1.5" />
+                                <path d="M86,48 L78,50 L80,68 L88,62 Z" fill="#1e1b4b" stroke="#312e81" stroke-width="1.5" />
+                                
+                                <!-- Sleek Cyber Visor / Glowing Eyes -->
+                                <path d="M42,42 L78,42 C82,42 82,54 78,54 L42,54 C38,54 38,42 42,42 Z" fill="#0c0a09" stroke="#6366f1" stroke-width="1.5" />
+                                <path d="M45,46 L75,46 C77,46 77,50 75,50 L45,50 C43,50 43,46 45,46 Z" fill="url(#neonGlow)" class="animate-pulse" />
+                                
+                                <!-- Forensic/Tech HUD Lines on Visor -->
+                                <line x1="60" y1="42" x2="60" y2="54" stroke="#06b6d4" stroke-width="1" opacity="0.7" />
+                                <circle cx="50" cy="48" r="1.5" fill="#fff" />
+                                <circle cx="70" cy="48" r="1.5" fill="#fff" />
+
+                                <!-- Cheek Cybernetics -->
+                                <path d="M46,64 L54,64 L52,70 L48,70 Z" fill="#06b6d4" opacity="0.6" />
+                                <path d="M74,64 L66,64 L68,70 L72,70 Z" fill="#06b6d4" opacity="0.6" />
+                                
+                                <!-- Forehead Tech Crest -->
+                                <path d="M55,18 L65,18 L63,28 L57,28 Z" fill="url(#neonGlow)" />
+                                <line x1="60" y1="28" x2="60" y2="38" stroke="#ec4899" stroke-width="1.5" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <h2 class="text-xl md:text-2xl font-black text-white">Adrian</h2>
+                    <p class="text-xs text-indigo-400 font-mono mt-1">&lt; Full-Stack Student Developer /&gt;</p>
+                
+                    <p class="text-slate-400 text-xs md:text-sm mt-4 leading-relaxed">
+                        Senang memecahkan kode rumit, menyulap interface keren, dan berteman dengan kecerdasan buatan. Mari kolaborasi!
+                    </p>
+                </div>
+                <button onclick="switchTab('game')" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-2xl text-xs font-bold text-white transition duration-300 shadow-xl shadow-indigo-500/15 flex items-center gap-2 self-start md:self-auto shrink-0 justify-center">
+                    <i data-lucide="gamepad-2" class="w-4 h-4 animate-bounce"></i> Main Game & Dapatkan XP
+                </button>
+            </div>
+
+            <!-- Chat AI Interface -->
+            <div class="lg:col-span-1 glass-panel rounded-3xl flex flex-col h-[400px]">
+                <!-- Header Chat -->
+                <div class="p-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/20 rounded-t-3xl">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <i data-lucide="bot" class="w-4.5 h-4.5 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Interactive Portofolio AI</h4>
+                            <span class="text-[9px] text-emerald-400 flex items-center gap-1">
+                                <span class="w-1 h-1 rounded-full bg-emerald-500"></span> Online • Gemini Powered
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="clearAIChat()" class="text-[10px] text-slate-500 hover:text-rose-400 transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> Bersihkan
+                    </button>
+                </div>
+
+                <!-- Chat Message Area -->
+                <div id="ai-chat-box" class="flex-1 overflow-y-auto p-4 space-y-3 font-medium text-xs md:text-sm">
+                    <!-- Welcome Bubble -->
+                    <div class="flex gap-2.5 max-w-[85%]">
+                        <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                            <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        </div>
+                        <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200 text-xs">
+                            Halo! Saya asisten pintar Adrian. Saya tahu segalanya tentang proyeknya, keahliannya, dan ambisinya. Coba tanyakan apa saja seperti: 
+                            <span class="block mt-1 font-semibold text-indigo-400 italic">"Proyek apa saja yang sudah dia buat?"</span> atau <span class="font-semibold text-indigo-400 italic">"Apakah dia bisa membuat game?"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="p-4 border-t border-slate-800/80 bg-slate-900/10 rounded-b-3xl">
+                    <form id="ai-chat-form" onsubmit="sendAIChatMessage(event)" class="flex gap-2">
+                        <input id="ai-chat-input" type="text" placeholder="Tanyakan keahlian Adrian..." class="flex-1 px-4 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                        <button type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-xs text-white transition duration-200 flex items-center gap-1 shadow-lg shadow-indigo-600/10 shrink-0">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Guestbook & Testimonial Column (Membatalkan Error innerHTML null) -->
+            <div class="lg:col-span-1 glass-panel rounded-3xl p-6 flex flex-col h-[400px] justify-between">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                            <i data-lucide="message-square" class="w-4.5 h-4.5 text-indigo-400"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Buku Tamu / Testimoni</h4>
+                            <p class="text-[9px] text-slate-500">Tulis pesan untuk Adrian</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- List Testimoni (Scrollable) -->
+                <div id="guestbook-list" class="flex-1 overflow-y-auto space-y-3 my-3 pr-1">
+                    <!-- Diisi secara dinamis oleh JavaScript -->
+                </div>
+
+                <!-- Form Testimoni -->
+                <div class="space-y-2 pt-3 border-t border-slate-800/80">
+                    <div class="flex gap-2">
+                        <input id="guestbook-name" type="text" placeholder="Nama Anda" class="w-1/3 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                        <input id="guestbook-msg" type="text" placeholder="Tulis testimoni keren..." class="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-xs text-slate-100 placeholder:text-slate-600 transition" required>
+                    </div>
+                    <button onclick="addGuestbookMessage()" class="w-full py-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-xl font-bold text-xs text-white transition duration-200 flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10">
+                        <span>Kirim Testimoni</span>
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ================= TAB 2: SKILLS MATRIX & CHARTS ================= -->
+        <section id="tab-skills" class="tab-content space-y-8 hidden">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <span class="text-xs text-indigo-400 font-mono uppercase tracking-widest">&lt; Skill Matrix /&gt;</span>
+                <h2 class="text-2xl md:text-3xl font-black text-white">Keahlian & Radar Teknologi</h2>
+                <p class="text-slate-400 text-xs md:text-sm">Evaluasi keahlian teknis saya yang tersusun dalam visualisasi interaktif.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <!-- Visualisasi Radar Chart.js -->
+                <div class="glass-panel rounded-3xl p-6 md:p-8 flex flex-col justify-center items-center h-[400px]">
+                    <h3 class="font-bold text-sm text-slate-400 mb-4 text-center self-start flex items-center gap-2">
+                        <i data-lucide="radial-gradient" class="w-4 h-4 text-indigo-400"></i>
+                        <span>Radar Distribusi Keahlian</span>
+                    </h3>
+                    <div class="relative w-full h-[320px]">
+                        <canvas id="skillsRadarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Deskripsi & Tech-stack grid -->
+                <div class="space-y-6">
+                    <div class="glass-panel rounded-3xl p-6 space-y-4">
+                        <h3 class="font-bold text-base text-white">Bahasa & Framework Terpilih</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- JS/TS -->
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-yellow-500/10 text-yellow-500 rounded-lg">
+                                    <i data-lucide="code" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">JavaScript</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">92% Advanced</span>
+                                </div>
+                            </div>
+                            <!-- Tailwind CSS -->
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-sky-500/10 text-sky-400 rounded-lg">
+                                    <i data-lucide="palette" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Tailwind CSS</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">95% Expert</span>
+                                </div>
+                            </div>
+                            <!-- ThreeJS -->
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-purple-500/10 text-purple-400 rounded-lg">
+                                    <i data-lucide="box" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Three.js (3D)</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">80% Intermediate</span>
+                                </div>
+                            </div>
+                            <!-- Backend/API -->
+                            <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center gap-3">
+                                <div class="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                                    <i data-lucide="cpu" class="w-4.5 h-4.5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-white">Node.js / Express</h4>
+                                    <span class="text-[9px] text-slate-500 font-medium">85% Advanced</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Achievements & Badges (Jujur & Relatable Version) -->
+                    <div class="glass-panel rounded-3xl p-6 space-y-4">
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i data-lucide="medal" class="w-5 h-5 text-indigo-400"></i>
+                            <span>Lencana & Milestone Dev (Jujur Version)</span>
+                        </h3>
+                        <div class="flex flex-wrap gap-2.5">
+                            <span class="px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5" title="Seni menghemat waktu coding secara taktis">
+                                <i data-lucide="copy" class="w-3.5 h-3.5 text-indigo-400"></i> StackOverflow Copy-Paste Master
+                            </span>
+                            <span class="px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5" title="Jam tidur berantakan demi baris kode yang error">
+                                <i data-lucide="moon" class="w-3.5 h-3.5 text-violet-400"></i> Begadang Coding Enthusiast
+                            </span>
+                            <span class="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5" title="Bikin bug sendiri, pusing sendiri, benerin sendiri">
+                                <i data-lucide="bug" class="w-3.5 h-3.5 text-emerald-400"></i> Professional Bug Creator & Slayer
+                            </span>
+                            <span class="px-3 py-1.5 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-[10px] font-bold rounded-xl flex items-center gap-1.5" title="Bestie setia waktu pusing nyari solusi coding">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-pink-400"></i> Prompt Engineering Specialist
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: PROJECTS SHOWCASE ================= -->
+        <section id="tab-projects" class="tab-content space-y-8 hidden">
+            <!-- Header Projects -->
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div class="space-y-2">
+                    <span class="text-xs text-indigo-400 font-mono uppercase tracking-widest">&lt; Creative Hub /&gt;</span>
+                    <h2 class="text-2xl md:text-3xl font-black text-white">Kumpulan Proyek Hebat</h2>
+                </div>
+                <!-- Project Filters -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <button onclick="filterProjects('all')" class="project-filter-btn px-3.5 py-1.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition" data-filter="all">Semua</button>
+                    <button onclick="filterProjects('web')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="web">Web App</button>
+                    <button onclick="filterProjects('game')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="game">Game</button>
+                    <button onclick="filterProjects('ai')" class="project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition" data-filter="ai">AI</button>
+                </div>
+            </div>
+
+            <!-- Projects Grid -->
+            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Proyek dimasukkan secara dinamis oleh JavaScript -->
+            </div>
+
+            <!-- Detail Project Modal -->
+            <div id="project-detail-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 w-full max-w-lg space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span id="modal-project-cat" class="px-2.5 py-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-bold rounded-lg uppercase tracking-wider">Mata Pelajaran / Judul</span>
+                        <button onclick="closeProjectModal()" class="p-1.5 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    <!-- Wireframe SVG Representasi Visual -->
+                    <div class="w-full h-40 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 relative overflow-hidden group">
+                        <svg class="w-16 h-16 text-indigo-500/40 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                    </div>
+                    <div class="space-y-2">
+                        <h3 id="modal-project-title" class="text-xl font-bold text-white">Judul Proyek</h3>
+                        <p id="modal-project-desc" class="text-xs md:text-sm text-slate-400 leading-relaxed">Deskripsi lengkap dari proyek.</p>
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button onclick="claimProjectXP()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-xs text-white transition flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/15">
+                            <i data-lucide="zap" class="w-4 h-4"></i> Pelajari & Ambil +15 XP
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: RETRO TYPING DEV MINI-GAME ================= -->
+        <section id="tab-game" class="tab-content space-y-6 hidden">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <span class="text-xs text-emerald-400 font-mono uppercase tracking-widest">&lt; Arena Game /&gt;</span>
+                <h2 class="text-2xl md:text-3xl font-black text-white">Retro Code-Typer Game</h2>
+                <p class="text-slate-400 text-xs md:text-sm">Buktikan kecepatan coding-mu! Ketik ulang baris kode di bawah secepat mungkin sebelum waktu habis untuk merebut bonus XP.</p>
+            </div>
+
+            <div class="max-w-2xl mx-auto glass-panel rounded-3xl p-6 md:p-8 space-y-6 flex flex-col relative overflow-hidden">
+                <!-- Status Row -->
+                <div class="flex justify-between items-center text-xs border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">Waktu:</span>
+                        <span id="game-timer" class="font-mono font-bold text-amber-400 text-base">30s</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">Skor:</span>
+                        <span id="game-score" class="font-mono font-bold text-emerald-400 text-base">0</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-500 font-bold uppercase tracking-wider">XP Terkumpul:</span>
+                        <span id="game-xp" class="font-mono font-bold text-indigo-400 text-base">+0 XP</span>
+                    </div>
+                </div>
+
+                <!-- Word Display Container (Visual Code Snippet) -->
+                <div class="bg-slate-950/80 border border-slate-800 p-6 rounded-2xl relative">
+                    <div class="absolute top-3 left-3 flex gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                    <div class="text-right text-[10px] text-slate-600 font-mono">javascript</div>
+                    <div id="game-code-display" class="font-mono text-sm md:text-base text-slate-300 select-none whitespace-pre-line leading-relaxed text-center py-4">
+                        const portfolio = new DeveloperPortfolio();
+                    </div>
+                </div>
+
+                <!-- Input area -->
+                <div class="space-y-4">
+                    <input id="game-input" type="text" placeholder="Mulai mengetik di sini..." class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-center font-mono text-sm tracking-wide text-slate-100 transition" disabled>
+                    
+                    <div class="flex gap-2">
+                        <button id="game-control-btn" onclick="startGame()" class="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white rounded-xl font-bold text-xs transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/15">
+                            <i data-lucide="play" class="w-4 h-4"></i> Mulai Bermain
+                        </button>
+                        <button onclick="resetGame()" class="p-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white rounded-xl transition">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="w-full border-t border-slate-900 py-6 bg-slate-950/80 z-10 relative">
+        <div class="max-w-7xl mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
+            <p>© 2026 Adrian. All rights reserved.</p>
+            <div class="flex gap-4">
+                <a href="https://rey123.netlify.app/" class="hover:text-indigo-400 transition">link-belajar</a>
+                <a href="https://github.com/adriannsdepari123-ops" class="hover:text-indigo-400 transition">GitHub</a>
+                <a href="https://api.whatsapp.com/send/?phone=085692382270&text&type=phone_number&app_absent=0" class="hover:text-indigo-400 transition">whatsapp</a>
+                <a href="https://www.instagram.com/adnn123777" class="hover:text-indigo-400 transition">Instagram</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ================= STATE MANAGEMENT KEPEMILIKAN & GAMIFIKASI =================
+        let userLevel = 1;
+        let userXP = 0;
+        let targetXP = 100;
+        let unlockedProjectXP = []; // ID proyek yang sudah diklaim XP-nya
+
+        // Data Proyek Berorientasi Portofolio yang Keren
+        const projectsData = [
+            { id: 1, title: 'EduSmart AI Platform', cat: 'web', desc: 'Aplikasi asisten belajar komprehensif menggunakan Gemini AI API. Memiliki asisten chat, pembuat flashcard instan, visualisasi budget planner dengan grafik, dan papan tugas kanban.', xp: 15 },
+            { id: 2, title: 'Quantum Space Shooter', cat: 'game', desc: 'Game aksi 2D HTML5 Canvas dengan mekanika fisika real-time, gelombang serangan musuh berbasis algoritma dinamis, dan integrasi Sound Synth API.', xp: 15 },
+            { id: 3, title: 'Smart-Home AI Brain', cat: 'ai', desc: 'Sistem analisis data berbasis IoT untuk mengatur efisiensi konsumsi daya listrik rumah tangga. Terkoneksi dengan model pembelajaran mesin ringan.', xp: 15 },
+            { id: 4, title: 'Decentralized Task Ledger', cat: 'web', desc: 'Papan manajemen kolaborasi tim dengan arsitektur penyimpanan lokal terdistribusi untuk memastikan ketahanan data dari mati listrik.', xp: 15 },
+            { id: 5, title: 'Pixel Quest RPG Engine', cat: 'game', desc: 'Engine visual game bermain peran (RPG) retro berbasis Javascript murni dengan editor peta (map-editor) modular built-in.', xp: 15 }
+        ];
+
+        // Data Testimoni Awal (In-memory LocalStorage)
+        let guestbookData = [
+            { name: 'Brian', msg: 'Portofolionya luar biasa keren, efek 3D-nya mulus banget! 👍', color: 'text-indigo-400' },
+            { name: 'Sarah', msg: 'Fitur integrasi AI-nya sangat kreatif. Nilai proyek ini 100!', color: 'text-emerald-400' }
+        ];
+
+        // Game State "Code Typer"
+        const codingSnippets = [
+            "const developer = new WebDeveloper();",
+            "function calculateXpPoints(bonus) {",
+            "await fetch('https://api.gemini.ai');",
+            "document.getElementById('level').innerText;",
+            "import { Scene, Camera } from 'three';",
+            "ctx.shadowColor = 'rgba(99,102,241,1)';"
+        ];
+        let gameTimer = 30;
+        let gameScore = 0;
+        let isGameRunning = false;
+        let gameInterval = null;
+        let currentSnippet = "";
+
+        // Modal Active State Helper
+        let activeModalProject = null;
+
+        // ================= KONEKSI API GEMINI (AI KNOWLEDGE INTEGRATION) =================
+        async function askGemini(prompt) {
+            // API Key opsional, disuntikkan secara dinamis saat runtime oleh user, fallback menggunakan mock AI cerdas jika kosong.
+            const apiKeys = ""; 
+            const sysInstruction = `Anda adalah Asisten Portofolio AI pribadi untuk "Adrian" (seorang siswa cerdas, kreatif, & menguasai JavaScript, Tailwind, Three.js, dan AI). Jawablah semua pertanyaan recruiter atau guru dengan ramah, komunikatif, sedikit humoris ala tech, dan yakinkan mereka bahwa "Adrian" berhak mendapat nilai 100 atau diterima kerja. Jika ditanya hal yang benar-benar tidak terkait portofolio, arahkan kembali dengan cerdas.`;
+            
+            if (!apiKeys) {
+                // FALLBACK SMART CHATBOT SYSTEM (jika server offline/tanpa API key)
+                return simulateSmartLocalResponse(prompt);
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys}`;
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: sysInstruction }] }
+                    })
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, sirkuit pikiran saya terputus sejenak.";
+                }
+            } catch (err) {
+                console.error("Gemini API error:", err);
+            }
+            return simulateSmartLocalResponse(prompt);
+        }
+
+        // Fallback tanggapan cerdas jika API key tidak tersedia
+        function simulateSmartLocalResponse(prompt) {
+            const low = prompt.toLowerCase();
+            if (low.includes("proyek") || low.includes("karya") || low.includes("project")) {
+                return "Adrian sudah membuat 5 proyek besar di Portofolio ini! Di antaranya adalah **EduSmart AI Platform** (web asisten belajar), **Quantum Space Shooter** (game seru berbasis canvas), dan **Smart-Home AI Brain**. Anda bisa meninjau detailnya di tab 'Proyek'!";
+            }
+            if (low.includes("keahlian") || low.includes("skill") || low.includes("bisa apa")) {
+                return "Adrian memiliki keahlian utama di bidang Frontend Development (**Tailwind CSS & JavaScript**). Ia juga mahir dalam pemodelan data interaktif menggunakan **Chart.js** dan rendering 3D performa tinggi dengan **Three.js**. Lihat saja visualisasi radarnya di tab 'Skill'!";
+            }
+            if (low.includes("nilai") || low.includes("guru") || low.includes("sekolah")) {
+                return "Website ini dibuat sangat kompleks dengan integrasi Gemini AI, physics game, visualisasi radar 360, serta Three.js. Sudah sepantasnya Adrian mendapatkan **Nilai 100 atau A+** untuk mata pelajaran ini! 😉";
+            }
+            if (low.includes("game")) {
+                return "Tentu saja bisa! Adrian merancang game retro 'Code-Typer' di tab terakhir. Coba tunjukkan kecepatan mengetikmu untuk memecahkan rekor dan mengklaim XP!";
+            }
+            return "Halo! Saya adalah representasi cerdas dari Adrian. Saya bisa menjawab seputar riwayat pendidikannya, portofolionya, serta proyek game dan AI yang telah dikerjakannya. Silakan ketik pertanyaan yang lebih spesifik!";
+        }
+
+        // ================= SENSOR 3D STARS BACKGROUND (THREE.JS) =================
+        let scene, camera, renderer, starField;
+        let mouseX = 0, mouseY = 0;
+
+        function init3DBackground() {
+            const container = document.getElementById('canvas-container');
+            
+            // Inisialisasi Scene & Kamera
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+
+            // Renderer hemat daya
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // Membuat geometri partikel (Bintang)
+            const starsGeometry = new THREE.BufferGeometry();
+            const starsCount = 500;
+            const positions = new Float32Array(starsCount * 3);
+
+            for (let i = 0; i < starsCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 10;     // X
+                positions[i + 1] = (Math.random() - 0.5) * 10; // Y
+                positions[i + 2] = (Math.random() - 0.5) * 10; // Z
+            }
+
+            starsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            // Material partikel neon glowing soft
+            const starsMaterial = new THREE.PointsMaterial({
+                size: 0.04,
+                color: 0x6366f1, // Indigo
+                transparent: true,
+                opacity: 0.8,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending
+            });
+
+            starField = new THREE.Points(starsGeometry, starsMaterial);
+            scene.add(starField);
+
+            // Jalankan loop animasi setelah load sukses
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotasi konstan yang sangat lambat agar bernyawa
+            if (starField) {
+                starField.rotation.y += 0.001;
+                starField.rotation.x += 0.0005;
+
+                // Geser sedikit mengikuti pergerakan kursor mouse/touch
+                starField.rotation.y += (mouseX - starField.rotation.y) * 0.05;
+                starField.rotation.x += (mouseY - starField.rotation.x) * 0.05;
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Interaktivitas Drag / Mousemove
+        window.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth - 0.5) * 0.5;
+            mouseY = (e.clientY / window.innerHeight - 0.5) * 0.5;
+        });
+
+        // Alternatif touch gesture untuk layar sentuh handphone
+        window.addEventListener('touchmove', (e) => {
+            if(e.touches.length > 0) {
+                mouseX = (e.touches[0].clientX / window.innerWidth - 0.5) * 0.3;
+                mouseY = (e.touches[0].clientY / window.innerHeight - 0.5) * 0.3;
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ================= NOTIFIKASI TOAST CUSTOM =================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-2xl shadow-2xl flex items-center gap-3 border transition duration-300 transform translate-y-3 opacity-0 pointer-events-auto max-w-sm`;
+            
+            let icon = 'info';
+            if (type === 'success') {
+                toast.className += ' bg-slate-900 border-indigo-500/30 text-indigo-200 shadow-indigo-500/10';
+                icon = 'check-circle';
+            } else if (type === 'error') {
+                toast.className += ' bg-rose-950/95 border-rose-500/30 text-rose-200';
+                icon = 'alert-triangle';
+            } else {
+                toast.className += ' bg-slate-900 border-slate-800 text-slate-200';
+                icon = 'info';
+            }
+
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-5 h-5 shrink-0 ${type === 'success' ? 'text-indigo-400' : ''}"></i>
+                <span class="text-xs font-semibold leading-relaxed">${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            // Animasi masuk
+            setTimeout(() => {
+                toast.classList.remove('translate-y-3', 'opacity-0');
+            }, 20);
+
+            // Hilang otomatis dalam 4 detik
+            setTimeout(() => {
+                toast.classList.add('translate-y-3', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // ================= SISTEM GAMIFIKASI (XP & LEVEL-UP) =================
+        function addXP(amount) {
+            userXP += amount;
+            if (userXP >= targetXP) {
+                userLevel++;
+                userXP = userXP - targetXP;
+                targetXP = Math.floor(targetXP * 1.5);
+                
+                // Efek visual & Audio Synthesizer saat Level Up
+                showToast(`🎉 LUAR BIASA! Kamu naik ke LEVEL ${userLevel}!`, 'success');
+                playLevelUpSound();
+            } else {
+                showToast(`+${amount} XP diperoleh!`, 'success');
+            }
+            updateGamificationUI();
+            saveGamificationToLocal();
+        }
+
+        function updateGamificationUI() {
+            document.getElementById('dev-level').innerText = userLevel;
+            const percentage = (userXP / targetXP) * 100;
+            document.getElementById('xp-bar').style.width = `${percentage}%`;
+            document.getElementById('xp-text').innerText = `${userXP}/${targetXP} XP`;
+        }
+
+        // Audio Synth buatan untuk efek level up modern
+        function playLevelUpSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [261.63, 329.63, 392.00, 523.25]; // Akord Major C
+                notes.forEach((freq, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + index * 0.1);
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime + index * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + index * 0.1 + 0.4);
+                    
+                    osc.start(audioCtx.currentTime + index * 0.1);
+                    osc.stop(audioCtx.currentTime + index * 0.1 + 0.4);
+                });
+            } catch(e) {
+                console.log("Audio API not supported/blocked.");
+            }
+        }
+
+        function saveGamificationToLocal() {
+            localStorage.setItem('portfolio_level', userLevel);
+            localStorage.setItem('portfolio_xp', userXP);
+            localStorage.setItem('portfolio_targetXp', targetXP);
+            localStorage.setItem('portfolio_unlocked_xp', JSON.stringify(unlockedProjectXP));
+        }
+
+        function loadGamificationFromLocal() {
+            const savedLvl = localStorage.getItem('portfolio_level');
+            const savedXp = localStorage.getItem('portfolio_xp');
+            const savedTarget = localStorage.getItem('portfolio_targetXp');
+            const savedUnlocked = localStorage.getItem('portfolio_unlocked_xp');
+
+            if (savedLvl) userLevel = parseInt(savedLvl);
+            if (savedXp) userXP = parseInt(savedXp);
+            if (savedTarget) targetXP = parseInt(savedTarget);
+            if (savedUnlocked) unlockedProjectXP = JSON.parse(savedUnlocked);
+
+            updateGamificationUI();
+        }
+
+        // ================= NAVIGASI TABS SYSTEM =================
+        function switchTab(tabId) {
+            // Sembunyikan semua tab
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Tampilkan tab target
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            // Beri tanda aktif pada tombol navigasi
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 text-slate-400 hover:text-white";
+            });
+            const activeBtn = document.querySelector(`.nav-btn[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn px-4 py-2 rounded-xl text-sm font-medium transition duration-200 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30";
+            }
+
+            // Aksi inisialisasi tab spesifik
+            if (tabId === 'skills') {
+                renderSkillsRadar();
+            }
+            if (tabId === 'projects') {
+                renderProjects('all');
+            }
+
+            // Setiap berganti tab, dapat bonus kecil +2 XP untuk eksplorasi
+            addXP(2);
+        }
+
+        // ================= CHATBOT AI PORTFOLIO INTEGRATION =================
+        async function sendAIChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('ai-chat-input');
+            const chatBox = document.getElementById('ai-chat-box');
+            const userMsg = input.value.trim();
+            if(!userMsg) return;
+
+            // Tambah bubble chat User
+            const userBubble = document.createElement('div');
+            userBubble.className = 'flex gap-2.5 justify-end max-w-[85%] ml-auto';
+            userBubble.innerHTML = `
+                <div class="p-3 bg-indigo-600 text-white rounded-2xl rounded-tr-none">
+                    ${escapeHTML(userMsg)}
+                </div>
+            `;
+            chatBox.appendChild(userBubble);
+            input.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Tambah loading animatif
+            const loadBubble = document.createElement('div');
+            loadBubble.id = "chat-loading-placeholder";
+            loadBubble.className = "flex gap-2.5 max-w-[85%] animate-pulse";
+            loadBubble.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shrink-0">
+                    <i data-lucide="bot" class="w-3.5 h-3.5 text-slate-400"></i>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 text-slate-500 rounded-2xl rounded-bl-none">
+                    Menganalisis basis pengetahuan portofolio...
+                </div>
+            `;
+            chatBox.appendChild(loadBubble);
+            lucide.createIcons();
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Panggil API Gemini
+            const aiReply = await askGemini(userMsg);
+
+            // Hapus loading placeholder
+            const placeholder = document.getElementById('chat-loading-placeholder');
+            if (placeholder) placeholder.remove();
+
+            // Tampilkan tanggapan real AI
+            const aiBubble = document.createElement('div');
+            aiBubble.className = "flex gap-2.5 max-w-[85%]";
+            aiBubble.innerHTML = `
+                <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                    <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                </div>
+                <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200 whitespace-pre-line">
+                    ${escapeHTML(aiReply)}
+                </div>
+            `;
+            chatBox.appendChild(aiBubble);
+            lucide.createIcons();
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Tambah XP karena menggunakan AI
+            addXP(8);
+        }
+
+        function clearAIChat() {
+            const chatBox = document.getElementById('ai-chat-box');
+            chatBox.innerHTML = `
+                <div class="flex gap-2.5 max-w-[85%]">
+                    <div class="w-7 h-7 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 self-end">
+                        <i data-lucide="bot" class="w-3.5 h-3.5 text-indigo-400"></i>
+                    </div>
+                    <div class="p-3 bg-slate-900/60 border border-slate-800 rounded-2xl rounded-bl-none text-slate-200">
+                        Memori saya berhasil dibersihkan! Silakan ajukan pertanyaan portofolio baru yang ingin Anda ketahui seputar Siswa Kreatif.
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // ================= INTERACTIVE RADAR CHART (CHART.JS) =================
+        let skillsChartInstance = null;
+
+        function renderSkillsRadar() {
+            const ctx = document.getElementById('skillsRadarChart').getContext('2d');
+            if (skillsChartInstance) {
+                skillsChartInstance.destroy(); // Bersihkan instansi agar tidak flickering
+            }
+
+            skillsChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Frontend Dev', 'Backend Logic', 'UI/UX Crafting', 'Three.js 3D', 'AI Integration', 'Game Development'],
+                    datasets: [{
+                        label: 'Skor Penguasaan (%)',
+                        data: [95, 85, 90, 80, 85, 75],
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        borderColor: '#6366f1',
+                        borderWidth: 2,
+                        pointBackgroundColor: '#818cf8',
+                        pointBorderColor: '#020617',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        r: {
+                            grid: { color: 'rgba(255, 255, 255, 0.08)' },
+                            angleLines: { color: 'rgba(255, 255, 255, 0.08)' },
+                            pointLabels: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Plus Jakarta Sans',
+                                    size: 10,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: {
+                                display: false,
+                                maxTicksLimit: 5
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    }
+                }
+            });
+        }
+
+        // ================= PROJECT HUB WITH CATEGORY FILTER =================
+        function renderProjects(filterValue = 'all') {
+            const grid = document.getElementById('projects-grid');
+            grid.innerHTML = "";
+
+            const filtered = filterValue === 'all' 
+                ? projectsData 
+                : projectsData.filter(p => p.cat === filterValue);
+
+            filtered.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "glass-panel glass-panel-hover rounded-3xl p-5 md:p-6 flex flex-col justify-between items-start transition duration-300 transform hover:-translate-y-1 relative group cursor-pointer";
+                card.onclick = () => openProjectModal(p.id);
+                card.innerHTML = `
+                    <div class="space-y-3 w-full">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="px-2.5 py-0.5 bg-slate-900 border border-slate-800 text-[10px] text-slate-400 rounded-lg uppercase tracking-widest font-mono">${p.cat}</span>
+                            <div class="flex items-center gap-1.5 text-xs text-indigo-400 font-bold font-mono">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-indigo-500"></i> +${p.xp} XP
+                            </div>
+                        </div>
+                        <h4 class="font-extrabold text-base md:text-lg text-white group-hover:text-indigo-400 transition">${p.title}</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed line-clamp-3">${p.desc}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 mt-5 border-t border-slate-900 pt-3 w-full group-hover:text-white transition">
+                        <span>Lihat Detail Studi</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5 transform group-hover:translate-x-1 transition duration-200"></i>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+
+            // Sinkronkan styling tombol filter yang aktif
+            document.querySelectorAll('.project-filter-btn').forEach(btn => {
+                btn.className = "project-filter-btn px-3.5 py-1.5 text-slate-400 hover:text-white rounded-xl text-xs font-semibold transition";
+            });
+            const activeBtn = document.querySelector(`.project-filter-btn[data-filter="${filterValue}"]`);
+            if(activeBtn) {
+                activeBtn.className = "project-filter-btn px-3.5 py-1.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-semibold transition";
+            }
+        }
+
+        function openProjectModal(id) {
+            const project = projectsData.find(p => p.id === id);
+            if (!project) return;
+
+            activeModalProject = project;
+            document.getElementById('modal-project-cat').textContent = project.cat.toUpperCase();
+            document.getElementById('modal-project-title').textContent = project.title;
+            document.getElementById('modal-project-desc').textContent = project.desc;
+
+            const modal = document.getElementById('project-detail-modal');
+            modal.classList.remove('hidden');
+        }
+
+        function closeProjectModal() {
+            document.getElementById('project-detail-modal').classList.add('hidden');
+            activeModalProject = null;
+        }
+
+        function claimProjectXP() {
+            if (!activeModalProject) return;
+
+            if (unlockedProjectXP.includes(activeModalProject.id)) {
+                showToast("Kamu sudah mempelajari dan mengambil XP untuk proyek ini!", "error");
+            } else {
+                unlockedProjectXP.push(activeModalProject.id);
+                addXP(activeModalProject.xp);
+                saveGamificationToLocal();
+            }
+            closeProjectModal();
+        }
+
+        function filterProjects(cat) {
+            renderProjects(cat);
+            addXP(2); // Bonus kecil untuk aksi filtering
+        }
+
+        // ================= RETRO CODE-TYPER DEV MINI-GAME =================
+        function startGame() {
+            if (isGameRunning) return;
+
+            isGameRunning = true;
+            gameTimer = 30;
+            gameScore = 0;
+            document.getElementById('game-score').innerText = gameScore;
+            document.getElementById('game-timer').innerText = gameTimer + "s";
+            document.getElementById('game-input').disabled = false;
+            document.getElementById('game-input').focus();
+            document.getElementById('game-control-btn').innerText = "Sedang Bermain...";
+            document.getElementById('game-control-btn').disabled = true;
+
+            nextWord();
+
+            // Set interval timer mundur
+            gameInterval = setInterval(() => {
+                gameTimer--;
+                document.getElementById('game-timer').innerText = gameTimer + "s";
+
+                if (gameTimer <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function nextWord() {
+            const rand = Math.floor(Math.random() * codingSnippets.length);
+            currentSnippet = codingSnippets[rand];
+            document.getElementById('game-code-display').innerText = currentSnippet;
+            document.getElementById('game-input').value = "";
+        }
+
+        // Event listener ketikan user real-time
+        document.getElementById('game-input').addEventListener('input', (e) => {
+            if(!isGameRunning) return;
+
+            const typed = e.target.value;
+            if(typed === currentSnippet) {
+                // Berhasil ketik satu snippet, tambahkan skor
+                gameScore += 10;
+                document.getElementById('game-score').innerText = gameScore;
+                
+                // Tambahkan reward XP interaktif secara berkala
+                const earnedXP = 5;
+                addXP(earnedXP);
+                document.getElementById('game-xp').innerText = `+${gameScore/2} XP`;
+                
+                playSuccessClickSound();
+                nextWord();
+            }
+        });
+
+        function endGame() {
+            clearInterval(gameInterval);
+            isGameRunning = false;
+            document.getElementById('game-input').disabled = true;
+            document.getElementById('game-control-btn').innerText = "Main Lagi";
+            document.getElementById('game-control-btn').disabled = false;
+            
+            // Total XP yang diklaim di akhir game
+            const finalBonusXp = Math.floor(gameScore * 0.5);
+            showToast(`🎮 Selesai! Skor: ${gameScore}. Bonus Utama: +${finalBonusXp} XP!`, "success");
+        }
+
+        function resetGame() {
+            clearInterval(gameInterval);
+            isGameRunning = false;
+            gameTimer = 30;
+            gameScore = 0;
+            document.getElementById('game-timer').innerText = "30s";
+            document.getElementById('game-score').innerText = "0";
+            document.getElementById('game-xp').innerText = "+0 XP";
+            document.getElementById('game-input').value = "";
+            document.getElementById('game-input').disabled = true;
+            document.getElementById('game-code-display').innerText = "const portfolio = new DeveloperPortfolio();";
+            document.getElementById('game-control-btn').innerText = "Mulai Bermain";
+            document.getElementById('game-control-btn').disabled = false;
+        }
+
+        // Synthesizer Audio untuk ketikan sukses
+        function playSuccessClickSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } catch(e){}
+        }
+
+        // ================= GUESTBOOK (LOCALSTORAGE STORAGE) =================
+        function addGuestbookMessage() {
+            const nameEl = document.getElementById('guestbook-name');
+            const msgEl = document.getElementById('guestbook-msg');
+            const name = nameEl.value.trim();
+            const msg = msgEl.value.trim();
+
+            if(!name || !msg) {
+                showToast("Nama dan isi pesan wajib diisi!", "error");
+                return;
+            }
+
+            const colors = ['text-indigo-400', 'text-emerald-400', 'text-pink-400', 'text-amber-400', 'text-sky-400'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+            const newMsg = { name, msg, color: randomColor };
+            guestbookData.unshift(newMsg);
+            
+            // Simpan ke local storage
+            localStorage.setItem('portfolio_guestbook', JSON.stringify(guestbookData));
+
+            nameEl.value = "";
+            msgEl.value = "";
+
+            renderGuestbook();
+            
+            // Berikan reward besar karena mengisi testimoni
+            addXP(25);
+            showToast("Testimoni kamu telah tayang langsung!", "success");
+        }
+
+        function renderGuestbook() {
+            const list = document.getElementById('guestbook-list');
+            list.innerHTML = "";
+
+            const stored = localStorage.getItem('portfolio_guestbook');
+            if (stored) {
+                guestbookData = JSON.parse(stored);
+            }
+
+            guestbookData.forEach(g => {
+                const bubble = document.createElement('div');
+                bubble.className = "p-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl relative";
+                bubble.innerHTML = `
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                        <span class="font-bold text-[10px] ${g.color}">${escapeHTML(g.name)}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-relaxed font-medium">${escapeHTML(g.msg)}</p>
+                `;
+                list.appendChild(bubble);
+            });
+        }
+
+        // Helper cegah XSS
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // ================= LOAD WINDOW INITIALIZER =================
+        window.onload = function() {
+            // Render semua icon lucide
+            lucide.createIcons();
+
+            // Load status gamifikasi lokal & testimoni
+            loadGamificationFromLocal();
+            renderGuestbook();
+
+            // Inisialisasi latar belakang 3D bintang-bintang interaktif
+            init3DBackground();
+
+            // Kirim toast selamat datang
+            showToast("Berhasil terhubung ke Portofolio Assistant AI!", "success");
+        }
+    </script>
+</body>
+</html>
